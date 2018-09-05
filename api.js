@@ -2,7 +2,6 @@ const { MongoClient, ObjectId } = require('mongodb');
 const express = require('express');
 const bodyParser = require('body-parser');
 
-const connexionString = 'mongodb://chao.quenet:cinewild42@ds145412.mlab.com:45412/cinewild';
 const connexionString = null;
 
 const dbName = 'cinewild';
