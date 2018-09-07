@@ -2,7 +2,8 @@ const { MongoClient, ObjectId } = require('mongodb');
 const express = require('express');
 const bodyParser = require('body-parser');
 
-const connexionString = null;
+const connexionString = "mongodb://chao.quenet:cinewild42@ds145412.mlab.com:45412/cinewild";
+//const connexionString = null;
 
 const dbName = 'cinewild';
 
@@ -32,7 +33,7 @@ const shuffle = (arr) => {
 }
 
 
-app.use(bodyParser.urlencoded({ extended: false})); 
+app.use(bodyParser.urlencoded({ extended: false}));
 app.use(bodyParser.json());
 
 // Get all movies in inserted order
@@ -80,8 +81,17 @@ app.delete('/movies/:id', async function (req, res) {
 // Search Movie by title or type or language
 app.post('/movies/search', async function (req, res) {
   const { title, type, language } = req.body;
-
-  const resultSearch = await dbHandler.collection('movies').find({ title: new RegExp(title, 'i'), language, type }).toArray();
+  const searchObj = {};
+  if (title) {
+    searchObj.title = new RegExp(title, 'i');
+  }
+  if (language) {
+    searchObj.language = language;
+  }
+  if (type) {
+    searchObj.type = type;
+  }
+  const resultSearch = await dbHandler.collection('movies').find(searchObj).toArray();
   res.send(resultSearch);
 });
 

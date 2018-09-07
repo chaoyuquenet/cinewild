@@ -1,35 +1,59 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
+import { Link } from 'react-router-dom';
 import * as actions from 'actions';
 
+import { addMovie } from 'actions/index';
+
 class MovieAdd extends Component {
-  state = { movie: '' };
-
-  handleChange = (event)=> {
-    this.setState ({ movie: event.target.value });
-  };
-
-  handleSubmit = (event) => {
-    event.preventDefault();
-
-    this.props.saveMovie(this.state.movie)
-
-    this.setState({ movie: '' });
-  };
-
-  render(){
-    return (
-      <div>
-        <form onSubmit={this.handleSubmit}>
-          <h4>Add a Movie</h4>
-          <textarea onChange={this.handleChange} value={this.state.movie}/>
-          <div>
-            <button>Add Movie</button>
-          </div>
-        </form>
-      </div>
-    );
+  constructor(props) {
+    super(props);
+    this.state= {
+      title: '',
+      type: '',
+      language: '',
+    };
+    this.handleSubmit = this.handleSubmit.bind(this);
+    this.handleChange = this.handleChange.bind(this);
   }
-}
 
-export default connect(null, actions)(MovieAdd);
+  handleSubmit(event) {
+    console.log(this.state);
+    event.preventDefault();
+  }
+
+  handleChange(event) {
+    this.setState({[event.target.name]: event.target.value});
+  }
+
+  onSubmit(values) {
+      this.props.addMovie(values, () => {
+        this.props.history.push('/');
+      });
+    }
+
+    render() {
+
+      return (
+        <div>
+          <nav>
+            <Link to="/" className="btn btn-danger">Delete Movie</Link>
+          </nav>
+          <form onSubmit={this.handleSubmit}>
+            Title :<br />
+            <input type="text" name="title" value={this.state.title} onChange={this.handleChange} /><br />
+            Type :<br />
+            <input type="text" name="type"  value={this.state.type} onChange={this.handleChange} /><br />
+            Language :<br />
+            <input type="text" name="language" value={this.state.language} onChange={this.handleChange} /><br />
+
+            <button type="submit" className="btn btn-primary">Submit</button>
+          </form>
+        </div>
+      );
+    }
+  }
+
+  export default (
+    connect(null,{ addMovie })(MovieAdd)
+  );
