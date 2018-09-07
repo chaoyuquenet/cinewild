@@ -1,35 +1,83 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
+import { Link } from 'react-router-dom';
+import { Field, reduxForm } from 'redux-form';
 import * as actions from 'actions';
 
+import { addMovie } from 'actions/index';
+
 class MovieAdd extends Component {
-  state = { movie: '' };
+  renderField(field) {
+    const { meta: {touched, error } } = field;
+    const className = `form-group ${touched && error ? 'has-danger' : ''}`;
 
-  handleChange = (event)=> {
-    this.setState ({ movie: event.target.value });
-  };
-
-  handleSubmit = (event) => {
-    event.preventDefault();
-
-    this.props.saveMovie(this.state.movie)
-
-    this.setState({ movie: '' });
-  };
-
-  render(){
     return (
-      <div>
-        <form onSubmit={this.handleSubmit}>
-          <h4>Add a Movie</h4>
-          <textarea onChange={this.handleChange} value={this.state.movie}/>
-          <div>
-            <button>Add Movie</button>
-          </div>
-        </form>
+      <div className={className}>
+        <label>{this.label}</label>
+        <input
+          className="form-control"
+          type="text"
+          {...field.input}
+        />
+        <div className="text-help">
+         {touched ? error: ''}
+        </div>
       </div>
     );
   }
-}
+  onSubmit(values) {
+      this.props.addMovie(values, () => {
+        this.props.history.push('/');
+      });
+    }
 
-export default connect(null, actions)(MovieAdd);
+    render() {
+      const{handleSubmit}=this.props;
+
+      return (
+        <form onSubmit={handleSubmit(this.onSubmit.bind(this))}>
+          <Field
+            label="Title"
+            name="title"
+            component={this.renderField}
+          />
+          <Field
+            label="Type"
+            name="type"
+            component={this.renderField}
+          />
+          <Field
+            label="language"
+            name="language"
+            component={this.renderField}
+          />
+          <button type="submit" className="btn btn-primary">Submit</button>
+          <Link to="/" className="btn btn-danger">Delete Movie</Link>
+        </form>
+      );
+    }
+  }
+
+  function validate(values) {
+    const errors = {}
+
+    //validate the inputs from 'values'
+    if(!values.title) {
+      errors.title= "Enter Title!";
+    }
+    if(!values.type) {
+      errors.type= "Enter Type!";
+    }
+    if(!values.language) {
+      errors.language= "Enter language!";
+    }
+
+    return errors;
+  }
+
+  export default reduxForm({
+    validate,
+    form: 'AddMovieForm'
+  }) (
+    connect(null,{ addMovie })(MovieAdd)
+  );
