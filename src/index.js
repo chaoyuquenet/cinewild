@@ -1,28 +1,29 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { BrowserRouter, Route } from 'react-router-dom';
-import Root from './Root';
-import App from 'components/App';
+import PropTypes from 'prop-types';
+import { Provider } from 'react-redux';
+import { createStore, applyMiddleware } from 'redux';
+import { BrowserRouter, Route, Switch } from 'react-router-dom';
+import thunk from 'redux-thunk';
 
-ReactDOM.render(
-  <Root>
-    <BrowserRouter>
-      <Route path="/" component={App} />
-    </BrowserRouter>
-  </Root>,
-  document.querySelector('#root')
+import reducers from 'reducers';
+import MovieAdmin from 'components/MovieAdmin';
+import MovieList from 'components/MovieList';
+
+const store = createStore(
+  reducers,
+  applyMiddleware(thunk),
 );
 
-
-
-
-
-
-
-
-/*import registerServiceWorker from './registerServiceWorker';
-
-ReactDOM.render(<App />, document.getElementById("root"));
-
-registerServiceWorker();
-*/
+ReactDOM.render(
+  <Provider store={store}>
+    <BrowserRouter>
+      <div>
+        <Switch>
+          <Route path="/admin" component={MovieAdmin} />
+          <Route path="/" component={MovieList} />
+        </Switch>
+      </div>
+    </BrowserRouter>
+  </Provider>
+  , document.querySelector('#root'));

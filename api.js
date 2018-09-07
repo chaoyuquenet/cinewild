@@ -1,8 +1,10 @@
 const { MongoClient, ObjectId } = require('mongodb');
 const express = require('express');
 const bodyParser = require('body-parser');
+const _ = require('lodash');
 
-const connexionString = null;
+const connexionString = "mongodb://chao.quenet:cinewild42@ds145412.mlab.com:45412/cinewild";
+//const connexionString = null;
 
 const dbName = 'cinewild';
 
@@ -32,7 +34,7 @@ const shuffle = (arr) => {
 }
 
 
-app.use(bodyParser.urlencoded({ extended: false})); 
+app.use(bodyParser.urlencoded({ extended: false}));
 app.use(bodyParser.json());
 
 // Get all movies in inserted order
@@ -43,12 +45,21 @@ app.get('/movies', async function (req, res) {
   res.send(JSON.stringify(allMovies));
 });
 
+app.get('/movies/properties', async function (req, res) {
+  const allMovies = await dbHandler.collection('movies').find({}).toArray();
+  const language = _.uniq(_.map(allMovies, 'language'))
+  const type = _.uniq(_.map(allMovies, 'type'))
+
+  res.setHeader('Content-Type', 'application/json');
+  res.send(JSON.stringify({ language, type }));
+});
+
 // Get all movies in random order
 app.get('/movies/shuffle', async function (req, res) {
   const allMovies = await dbHandler.collection('movies').find({}).toArray();
 
   res.setHeader('Content-Type', 'application/json');
-  res.send(JSON.stringify(shuffle(allMovies)));
+  res.send(JSON.stringify(shuffle(allMovies).slice(0,4)));
 });
 
 // Get one movie by its ID
@@ -64,7 +75,7 @@ app.post('/movies', async function (req, res) {
   const { title, type, language } = req.body;
 
   const resultInsert = await dbHandler.collection('movies').insertOne({ title, type, language });
-  res.send({ok: resultInsert.ok});
+  res.send(resultInsert.ops[0]);
 });
 
 // Delete movie by its ID
@@ -80,17 +91,27 @@ app.delete('/movies/:id', async function (req, res) {
 // Search Movie by title or type or language
 app.post('/movies/search', async function (req, res) {
   const { title, type, language } = req.body;
-
-  const resultSearch = await dbHandler.collection('movies').find({ title: new RegExp(title, 'i'), language, type }).toArray();
+  const searchObj = {};
+  if (title) {
+    searchObj.title = new RegExp(title, 'i');
+  }
+  if (language) {
+    searchObj.language = language;
+  }
+  if (type) {
+    searchObj.type = type;
+  }
+  const resultSearch = await dbHandler.collection('movies').find(searchObj).toArray();
   res.send(resultSearch);
 });
 
 // Search Movies, returns name only, for autocomplete purpose
 app.post('/movies/autocomplete', async function (req, res) {
   const { title } = req.body;
-
-  console.log(title);
-  const resultSearch = await dbHandler.collection('movies').find({ title: new RegExp(title, 'i') }).toArray();
+  const resultSearch = await dbHandler
+    .collection('movies')
+    .find({ title: new RegExp(title, 'i') })
+    .toArray();
   res.send(resultSearch.map(obj => obj.title));
 });
 
