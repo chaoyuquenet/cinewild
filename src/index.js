@@ -20,7 +20,7 @@ ReactDOM.render(
         <Switch>
           <Route path="/movies/add" component={MovieAdd} />
           <Route path="/movies/:id" component={MovieDelete} />
-          <Route path="/movies" component={MovieList} />
+          <Route path="/" component={MovieList} />
         </Switch>
       </div>
     </BrowserRouter>
