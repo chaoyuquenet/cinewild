@@ -4,22 +4,23 @@ import PropTypes from 'prop-types';
 import { Provider } from 'react-redux';
 import { createStore, applyMiddleware } from 'redux';
 import { BrowserRouter, Route, Switch } from 'react-router-dom';
-import promise from 'redux-promise';
+import thunk from 'redux-thunk';
 
 import reducers from 'reducers';
-import MovieAdd from 'components/MovieAdd';
+import MovieAdmin from 'components/MovieAdmin';
 import MovieList from 'components/MovieList';
-import MovieDelete from 'components/MovieDelete';
 
-const createStoreWithMiddleware = applyMiddleware(promise)(createStore);
+const store = createStore(
+  reducers,
+  applyMiddleware(thunk),
+);
 
 ReactDOM.render(
-  <Provider store={createStoreWithMiddleware(reducers)}>
+  <Provider store={store}>
     <BrowserRouter>
       <div>
         <Switch>
-          <Route path="/movies/add" component={MovieAdd} />
-          <Route path="/movies/:id" component={MovieDelete} />
+          <Route path="/admin" component={MovieAdmin} />
           <Route path="/" component={MovieList} />
         </Switch>
       </div>

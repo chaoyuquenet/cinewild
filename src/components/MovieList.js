@@ -2,20 +2,35 @@ import _ from 'lodash';
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
-import * as actions from 'actions';
+import Header from './Header';
+import Footer from './Footer';
 
-import { fetchMovies } from 'actions/index';
+import { fetchMovies, searchMovieByProperty, getShuffleMovies, initProperties } from 'actions/index';
 
 class MovieList extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      searchBarInput: '',
+      selectedProperty: 'language',
+      propertyValues: [],
+    }
+    this.handleSearchSubmit= this.handleSearchSubmit.bind(this);
+    this.handleSearchInputChange = this.handleSearchInputChange.bind(this);
+    this.handleSelectProperty  = this.handleSelectProperty.bind(this);
+    this.handleSelectPropertyValue  = this.handleSelectPropertyValue.bind(this);
+  }
+
   componentDidMount() {
-   this.props.fetchMovies();
+    this.props.getShuffleMovies(true);
+    this.props.initProperties();
   }
 
   renderMovies() {
     return _.map(this.props.movies, movie => {
       return (
-        <li key={movie.id}>
-          <Link to={`/movies/${movie.id}`}>
+        <li key={movie._id}>
+          <Link to={`/movies/${movie._id}`}>
             {movie.title}
           </Link>
         </li>
@@ -23,64 +38,160 @@ class MovieList extends Component {
     });
   }
 
-  renderFooter() {
+  handleSearchSubmit(e) {
+    this.props.searchMovieByProperty('title', this.state.searchBarInput, 'searchResult');
+    e.preventDefault();
+  }
+  
+  handleSearchInputChange(e) {
+    this.setState({searchBarInput: e.target.value});
+  }
+
+  renderSearchForm() {
     return (
-      <footer className="page-footer orange">
-        <div className="container">
-          <div className="row">
-            <div className="col l6 s12">
-              <h5 className="white-text">Cinewild</h5>
-              <p className="grey-text text-lighten-4">This is a small movie project by <a className="white-text" href="https://github.com/ChaoQuenet">Chao Quenet</a> for <a className="white-text" href='https://wildcodeschool.fr/'>Wild Code School</a></p>
-            </div>
+      <form className="col s12" onSubmit={this.handleSearchSubmit}>
+        <div className="row center">
+          <div className="input-field col s12 center">
+            <input
+              placeholder="Kung-fu Panda"
+              id="search-movie"
+              type="text"
+              className="validate"
+              value={this.state.searchBarInput}
+              onChange={this.handleSearchInputChange}
+            />
+            <label htmlFor="search-movie">Search criteria</label>
+            <br />
+            <br />
+            <button className="waves-effect waves-light btn light-blue" type="submit">Search with Cinewild</button>
           </div>
         </div>
-        <div className="footer-copyright">
-          <div className="container">
-            Made by <a className="orange-text text-lighten-3" href="http://materializecss.com">Materialize</a>
-          </div>
-        </div>
-      </footer>
+      </form>
     );
   }
 
-  render(){
+  renderMovieThumbnail(movie) {
+    return (
+      <div className="card">
+        <div className="card-image">
+          <img src={movie.posterPath ? 
+            `http://image.tmdb.org/t/p/w500/${movie.posterPath}` :
+            'http://lexingtonvenue.com/media/poster-placeholder.jpg'}
+          />
+            <span className="card-title light-blue">{movie.title}</span>
+        </div>
+        <div className="card-action">
+          {movie.language} {movie.type}
+        </div>
+      </div>
+    );
+  }
+  renderSearchResults() {
+    const { searchResult } = this.props.movies;
+    return searchResult === undefined ? <ul></ul> : (
+      <ul className="row">
+        {
+          searchResult.map(movie => (
+          <li className="col s12 m3" key={movie._id}>
+            {this.renderMovieThumbnail(movie)}
+          </li>
+          ))
+        }
+      </ul>
+    );
+  }
+
+  renderMoviesRow(moviesType) {
+    return moviesType && moviesType.length ? (
+      <ul className="row">
+        {
+          moviesType.map(movie => (
+          <li className="col s12 m3" key={movie._id}>
+            {this.renderMovieThumbnail(movie)}
+          </li>
+          ))
+        }
+      </ul>
+    ) : (<ul className="row"></ul>);
+  }
+
+
+  handleSelectProperty(e) {
+    this.setState({selectedProperty: e.target.value}, () => {
+      const newValue = this.props.movies.properties[this.state.selectedProperty];
+      this.setState({
+        propertyValues: newValue,
+        selectedPropertyValue: newValue[0],
+      },() => {
+        this.props.searchMovieByProperty(this.state.selectedProperty, newValue[0], 'resultsByProperty');
+      } );
+
+    });
+  }
+
+  handleSelectPropertyValue(e) {
+    const newValue = e.target.value;
+    this.setState({selectedPropertyValue: newValue });
+    this.props.searchMovieByProperty(this.state.selectedProperty, newValue, 'resultsByProperty');
+  }
+
+  renderByProperty() {
+    const movieProperties = this.props.movies.properties;
+    const { propertyValues } = this.state;
+    return (
+      <div className="input-field row s12">
+        <select
+          style={{width: '10em', display: 'inline-block'}}
+          className="browser-default"
+          onChange={this.handleSelectProperty}
+          value={this.state.selectedProperty}>
+          {
+            movieProperties ?
+              Object.keys(movieProperties).map(property => (
+                <option key={property}>{property}</option>
+              )) :
+              ''
+          }
+        </select>
+        <select
+          className="browser-default"
+          onChange={this.handleSelectPropertyValue}
+          style={{width: '25em', display: 'inline-block'}}
+          value={this.state.selectedPropertyValue}
+        >
+          {
+            propertyValues.map(propValue => (
+              <option key={propValue}>{propValue}</option>
+            ))
+          }
+        </select>
+        <input type="text"></input>
+      </div>
+      );
+  }
+
+  render() {
     return (
       <div>
-        <nav className="light-blue lighten-1" role="navigation">
-          <div className="nav-wrapper container"><a id="logo-container" href="#" className="brand-logo">Cinewild</a>
-          <ul className="right hide-on-med-and-down">
-              <li>
-                <Link to="/">
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link to="/movies/add">
-                  Admin
-                </Link>
-              </li>
-            </ul>
-          </div>
-        </nav>
+        <Header />
         <div className="container">
           <br />
           <br />
-          <form className="col s12">
-            <div className="row center">
-              <div className="input-field col s12 center">
-                <input placeholder="Kung-fu Panda" id="search-movie" type="text" className="validate" />
-                  <label htmlFor="search-movie">Movie Name</label>
-                  <br />
-                  <br />
-                  <a className="waves-effect waves-light btn">Search with Cinewild</a>
-              </div>
-            </div>
-          </form>
+          {this.renderSearchForm()}
+          {this.renderSearchResults()}
+        </div>
+        <div className="container">
+          <h4>Filter by property</h4>
+          {this.renderByProperty()}
+          {this.renderMoviesRow(this.props.movies.resultsByProperty)}
+        </div>
+        <div className="container">
+          <h4>4 random movies</h4>
+          {this.renderMoviesRow(this.props.movies.allMovies)}
         </div>
         <ul className="list-group">
-          {this.renderMovies()}
         </ul>
-        {this.renderFooter()}
+        <Footer />
       </div>
     );
   }
@@ -90,4 +201,9 @@ function mapStateToProps(state) {
   return {movies:state.movies};
 }
 
-export default connect(mapStateToProps, {fetchMovies})(MovieList);
+export default connect(mapStateToProps, {
+  fetchMovies,
+  searchMovieByProperty,
+  getShuffleMovies,
+  initProperties,
+})(MovieList);
