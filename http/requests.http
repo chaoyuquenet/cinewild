@@ -1,0 +1,43 @@
+POST http://127.0.0.1:5000/movies
+Content-type: application/json
+
+{
+  "title": "Titanic",
+  "language": "fr",
+  "type": "Love"
+}
+
+###
+
+GET http://127.0.0.1:5000/movies
+
+###
+
+GET http://127.0.0.1:5000/movies/21
+
+###
+
+DELETE http://127.0.0.1:5000/movies/21
+
+###
+
+GET http://127.0.0.1:5000/movies/shuffle
+
+###
+POST http://127.0.0.1:5000/movies/autocomplete
+Content-type: application/json
+
+{
+  "title": "k"
+}
+
+###
+
+POST http://127.0.0.1:5000/movies/search
+Content-type: application/json
+
+{
+  "title": "Panda",
+  "type": "Comédie",
+  "language": ["cn"]
+}

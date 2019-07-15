@@ -1,120 +1,218 @@
-const { MongoClient, ObjectId } = require('mongodb');
+// const { MongoClient, ObjectId } = require('mongodb');
+const { Pool, Client } = require('pg');
 const express = require('express');
 const bodyParser = require('body-parser');
 const _ = require('lodash');
 
-const connexionString = "mongodb://chao.quenet:cinewild42@ds145412.mlab.com:45412/cinewild";
-//const connexionString = null;
+const cors = require('cors');
 
-const dbName = 'cinewild';
+const password = require('./password-file');
 
-let dbHandler;
+const { joinPropertyReducer, flattenById } = require('./dataUtils');
 
-if (connexionString === null) {
-  throw 'Please update connexionString parameter'
+const availableLanguages = ['en', 'cn', 'fr'];
+
+let pool;
+
+try {
+  pool = new Pool({
+    user: 'postgres',
+    host: 'localhost',
+    database: 'cinewild',
+    password,
+    port: 5432
+  });
+} catch (err) {
+  console.log('Error while connecting to Cinewild postgresql database : ');
+  console.log(err);
 }
-MongoClient.connect(connexionString, function (err, client) {
 
-  dbHandler = client.db(dbName);
-  console.log('Connecté à mongodb...');
-});
+const client = new Client();
+client.connect();
 
 const app = express();
 
 // Fisher-Yates randomize array function
-const shuffle = (arr) => {
+const shuffle = arr => {
   let j, x, i;
   for (i = arr.length - 1; i > 0; i--) {
-      j = Math.floor(Math.random() * (i + 1));
-      x = arr[i];
-      arr[i] = arr[j];
-      arr[j] = x;
+    j = Math.floor(Math.random() * (i + 1));
+    x = arr[i];
+    arr[i] = arr[j];
+    arr[j] = x;
   }
   return arr;
-}
+};
 
-
-app.use(bodyParser.urlencoded({ extended: false}));
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+app.use(cors());
 
 // Get all movies in inserted order
-app.get('/movies', async function (req, res) {
-  const allMovies = await dbHandler.collection('movies').find({}).toArray();
+app.get('/movies', async function(req, res) {
+  const allMovies = await pool.query('SELECT * FROM movies');
 
   res.setHeader('Content-Type', 'application/json');
-  res.send(JSON.stringify(allMovies));
+  res.send(JSON.stringify(allMovies.rows));
 });
 
-app.get('/movies/properties', async function (req, res) {
-  const allMovies = await dbHandler.collection('movies').find({}).toArray();
-  const language = _.uniq(_.map(allMovies, 'language'))
-  const type = _.uniq(_.map(allMovies, 'type'))
+// Get properties from all movies
+app.get('/movies/properties', async function(req, res) {
+  const typesSelect = await pool.query('SELECT * FROM types');
 
   res.setHeader('Content-Type', 'application/json');
-  res.send(JSON.stringify({ language, type }));
+  res.send(
+    JSON.stringify({
+      types: typesSelect.rows.map(type => type.type_names),
+      languages: availableLanguages
+    })
+  );
 });
 
 // Get all movies in random order
-app.get('/movies/shuffle', async function (req, res) {
-  const allMovies = await dbHandler.collection('movies').find({}).toArray();
+app.get('/movies/shuffle', async function(req, res) {
+  const allMovies = await pool.query('SELECT * FROM movies');
 
   res.setHeader('Content-Type', 'application/json');
-  res.send(JSON.stringify(shuffle(allMovies).slice(0,4)));
+  res.send(JSON.stringify(shuffle(allMovies.rows).slice(0, 4)));
 });
 
 // Get one movie by its ID
-app.get('/movies/:id', async function (req, res) {
+app.get('/movies/:id', async function(req, res) {
   const idToGet = req.params.id;
-  const oneMovie = await dbHandler.collection('movies').findOne({_id: ObjectId(idToGet)});
 
-  res.send(oneMovie);
+  const movieResult = await pool.query(
+    'SELECT id, movie_name, image FROM movies WHERE id=$1',
+    [idToGet]
+  );
+
+  if (movieResult.rows.length === 0) {
+    res.send(404);
+  } else {
+    res.status(200);
+    res.setHeader('Content-Type', 'application/json');
+    res.send(JSON.stringify(movieResult.rows[0]));
+  }
 });
 
 // Add a new movie
-app.post('/movies', async function (req, res) {
-  const { title, type, language } = req.body;
+app.post('/movies', async function(req, res) {
+  const { title, type, language, image } = req.body;
 
-  const resultInsert = await dbHandler.collection('movies').insertOne({ title, type, language });
-  res.send(resultInsert.ops[0]);
+  const insertMoviesRes = await pool.query(
+    'INSERT INTO movies (movie_name, image) VALUES ($1, $2) RETURNING id',
+    [title, image]
+  );
+
+  const insertedId = insertMoviesRes.rows[0].id;
+
+  await pool.query(
+    'INSERT INTO movies_languages (movie_id, language) VALUES ($1, $2)',
+    [insertedId, language]
+  );
+
+  const chooseFirstType = await pool.query(
+    'SELECT id from types WHERE type_name=$1',
+    [type]
+  );
+
+  let typeId;
+  // If no result => Means the type doesn't exist yet, we insert it.
+  if (chooseFirstType.rows.length === 0) {
+    const insertTypeRes = await pool.query(
+      'INSERT INTO types (type_name) VALUES ($1) RETURNING id',
+      [type]
+    );
+    typeId = insertTypeRes.rows[0].id;
+  } else {
+    typeId = chooseFirstType.rows[0].id;
+  }
+
+  await pool.query(
+    'INSERT INTO movies_types (movie_id, type_id) VALUES ($1, $2)',
+    [insertedId, typeId]
+  );
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Location', `http://127.0.0.1:5000/movies/${insertedId}`);
+
+  res.status(201);
+  res.send(JSON.stringify({ insertedId }));
 });
 
 // Delete movie by its ID
-app.delete('/movies/:id', async function (req, res) {
+app.delete('/movies/:id', async function(req, res) {
   const idToDelete = req.params.id;
 
-  const resultDelete = await dbHandler.collection('movies').deleteOne({_id: ObjectId(idToDelete)});
-  res.setHeader('Content-Type', 'application/json');
-  res.send(JSON.stringify({ok: resultDelete.ok}));
-
-});
-
-// Search Movie by title or type or language
-app.post('/movies/search', async function (req, res) {
-  const { title, type, language } = req.body;
-  const searchObj = {};
-  if (title) {
-    searchObj.title = new RegExp(title, 'i');
-  }
-  if (language) {
-    searchObj.language = language;
-  }
-  if (type) {
-    searchObj.type = type;
-  }
-  const resultSearch = await dbHandler.collection('movies').find(searchObj).toArray();
-  res.send(resultSearch);
+  await pool.query('DELETE FROM movies WHERE id=$1', [idToDelete]);
+  await pool.query('DELETE FROM movies_types WHERE movie_id=$1', [idToDelete]);
+  await pool.query('DELETE FROM movies_languages WHERE movie_id=$1', [
+    idToDelete
+  ]);
+  res.send(200);
 });
 
 // Search Movies, returns name only, for autocomplete purpose
-app.post('/movies/autocomplete', async function (req, res) {
+app.post('/movies/autocomplete', async function(req, res) {
   const { title } = req.body;
-  const resultSearch = await dbHandler
-    .collection('movies')
-    .find({ title: new RegExp(title, 'i') })
-    .toArray();
-  res.send(resultSearch.map(obj => obj.title));
+
+  const foundMovies = await pool.query(
+    `SELECT
+      movie_name
+    FROM movies
+    WHERE
+      upper(movie_name) LIKE CONCAT('%', upper($1), '%')`,
+    [title]
+  );
+
+  console.log(foundMovies);
+  res.setHeader('Content-Type', 'application/json');
+  res.send(
+    JSON.stringify({
+      result: foundMovies.rows
+    })
+  );
 });
 
-app.listen(5000, function () {
-  console.log('Example app listening on port 5000!')
+// Search Movie by title or type or language
+app.post('/movies/search', async function(req, res) {
+  const { title, type, language } = req.body;
+
+  console.log(title);
+  const { rows: rawMovies } = await pool.query(
+    `
+    SELECT
+      DISTINCT movies.id,
+      movies.movie_name,
+      movies.image,
+      movies_languages.language,
+      types.type_name
+    FROM
+      movies
+      INNER JOIN movies_languages ON movies.id = movies_languages.movie_id
+      INNER JOIN movies_types ON movies.id = movies_types.movie_id
+      INNER JOIN types ON movies_types.type_id = types.id
+    WHERE movies.movie_name LIKE CONCAT('%', $1::character, '%')
+      OR types.type_name = $2
+      OR movies_languages.language = ANY($3::lang[]);
+    `,
+    [title, type, language]
+  );
+
+  const joinedLanguages = rawMovies.reduce(joinPropertyReducer('language'), {});
+  const joinedTypes = rawMovies.reduce(joinPropertyReducer('type_name'), {});
+
+  const aggregatedMovies = Object.values(rawMovies.reduce(flattenById, {}));
+
+  const enrichedMovies = aggregatedMovies.map(movie => ({
+    ...movie,
+    languages: Object.keys(joinedLanguages[movie.movieId].languages),
+    types: Object.keys(joinedTypes[movie.movieId].type_names)
+  }));
+
+  res.send(JSON.stringify(enrichedMovies));
+});
+
+app.listen(5000, function() {
+  console.log('Example app listening on port 5000!');
 });
