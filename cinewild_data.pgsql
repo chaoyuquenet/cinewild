@@ -4,13 +4,6 @@ CREATE TABLE movies (
   image character varying (255)
 );
 
-CREATE TYPE lang as ENUM('cn', 'en', 'fr')
-
-CREATE TABLE movies_languages(
-  movie_id int,
-  language lang
-);
-
 INSERT INTO movies(movie_name,image)
 VALUES(
   'Kungfu Panda', 
@@ -35,6 +28,13 @@ VALUES(
 (
   'Karaté Kid',
   'https://image.tmdb.org/t/p/w600_and_h900_bestv2/7xC0Neq5GVzJYjXpdSxGiUaFzRq.jpg'
+);
+
+CREATE TYPE lang as ENUM('cn', 'en', 'fr')
+
+CREATE TABLE movies_languages(
+  movie_id int,
+  language lang
 );
 
 INSERT INTO movies_languages (movie_id,language) VALUES 

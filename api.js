@@ -192,7 +192,7 @@ app.post('/movies/search', async function(req, res) {
       INNER JOIN movies_languages ON movies.id = movies_languages.movie_id
       INNER JOIN movies_types ON movies.id = movies_types.movie_id
       INNER JOIN types ON movies_types.type_id = types.id
-    WHERE movies.movie_name LIKE CONCAT('%', $1::character, '%')
+    WHERE UPPER(movies.movie_name) LIKE CONCAT('%', UPPER($1::varchar), '%')
       OR types.type_name = $2
       OR movies_languages.language = ANY($3::lang[]);
     `,

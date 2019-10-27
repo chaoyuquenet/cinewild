@@ -92,13 +92,15 @@ class MovieList extends Component {
   renderMovieThumbnail(movie) {
     console.log(movie);
 
+    const movieName = movie.movieName ? movie.movieName : movie.movie_name;
+    const movieImage = movie.movieImage ? movie.movieImage : movie.image;
     return (
       <div className="card">
         <div className="card-image">
           <img
             src={
-              movie.image
-                ? `${movie.image}`
+              movieImage
+                ? `${movieImage}`
                 : 'http://lexingtonvenue.com/media/poster-placeholder.jpg'
             }
           />
@@ -106,14 +108,19 @@ class MovieList extends Component {
             {movie.movie_name}
           </span> */}
         </div>
-        <div className="card-action">
-          {movie.language} {movie.type}
+        <div className="card-action" style={{ minHeight: '9rem' }}>
+          <span style={{ fontWeight: 'bold', fontSize: '1.5rem' }}>
+            {movieName}
+          </span>
+          <br /> {movie.languages && movie.languages.join(', ')} <br />
+          {movie.types && movie.types.join(', ')}
         </div>
       </div>
     );
   }
   renderSearchResults() {
     const { searchResult } = this.props.movies;
+
     return searchResult === undefined ? (
       <ul />
     ) : (
@@ -174,10 +181,11 @@ class MovieList extends Component {
 
   renderByProperty() {
     const movieProperties = this.props.movies.properties;
+
     if (!movieProperties) {
       return;
     }
-    debugger;
+
     const propertyValues = movieProperties[this.state.selectedProperty];
     return (
       <div className="input-field row s12">
